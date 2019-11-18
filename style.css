@@ -1,0 +1,62 @@
+body {
+  font-size:200px;
+  /*   background:black; */
+  text-align: center;
+  line-height: 300px;
+  color:white;
+  background:black;
+}
+
+.outer {
+	display: table;
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 100%;
+	/*background: red;*/
+
+}
+
+.middle {
+	display: table-cell;
+	vertical-align: middle;
+	/*background: black;*/
+}
+
+.inner {
+	margin-left: auto;
+	margin-right: auto;
+	width: 500px;
+	text-align: center;
+}
+
+#hh, #mm, #ss {
+  /* background: red; */
+  width: 100px;
+  height: 50px;
+  display:table;
+  text-align: center;
+}
+
+
+.f0 {font-family: 'Cousine', monospace;}
+.f1 {font-family: 'B612 Mono', monospace; letter-spacing:-15px;}
+.f2 {font-family: 'Major Mono Display', monospace;}
+.f3 {font-family: 'Fira Code', monospace;}
+.f4 {font-family: 'Cutive Mono', monospace;}
+.f5 {font-family: 'Nova Mono', monospace;}
+.f6 {font-family: 'Oxygen Mono', monospace;}
+.f7 {font-family: 'Overpass Mono', monospace;}
+.f8 {font-family: 'VT323', monospace;}
+.f9 {font-family: 'Space Mono', monospace;}
+.f10 {font-family: 'Fira Mono', monospace;}
+.f11 {font-family: 'Anonymous Pro', monospace;}
+.f12 {font-family: 'IBM Plex Mono', monospace;}
+.f13 {font-family: 'Share Tech Mono', monospace;}
+.f14 {font-family: 'PT Mono', monospace;}
+.f15 {font-family: 'Nanum Gothic Coding', monospace;}
+.f16 {font-family: 'Roboto Mono', monospace;}
+.f17 {font-family: 'Inconsolata', monospace;}
+.f18 {font-family: 'Source Code Pro', monospace;}
+.f19 {font-family: 'Ubuntu Mono', monospace;}
