@@ -1,4 +1,4 @@
-# clocky-clock
+# clocky-clock ⏰️ 
  
 A neurotic, jittery clock. It changes colour and typeface lots of times per second. 
 
