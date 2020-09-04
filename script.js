@@ -50,7 +50,7 @@ function update() {
   document.getElementById('mm').innerHTML = (d.getMinutes() < 10? '0' : '') + d.getMinutes();
   document.getElementById('ss').innerHTML = (d.getSeconds() < 10? '0' : '') + d.getSeconds();
   /* colour changing */
-  document.getElementById('bgd').style.background = randomColor({luminosity:'dark',hue:'pink'});
+  document.getElementById('bgd').style.background = randomColor({luminosity:'dark',hue:'red'});
 }
 
 // colour fun!

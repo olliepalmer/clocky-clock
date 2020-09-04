@@ -15,7 +15,7 @@ body {
 	left: 0;
 	height: 100%;
 	width: 100%;
-  transition:all 5000ms;
+  transition:all 1000ms;
   will-change:background;
 }
 
