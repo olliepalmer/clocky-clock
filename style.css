@@ -1,5 +1,5 @@
 body {
-  font-size:200px;
+  font-size:50px;
   /*   background:black; */
   text-align: center;
   line-height: 1;
@@ -15,7 +15,7 @@ body {
 	left: 0;
 	height: 100%;
 	width: 100%;
-  transition:all 1000ms;
+  transition:all 10000ms;
   will-change:background;
 }
 
