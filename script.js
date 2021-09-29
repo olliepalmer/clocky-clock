@@ -6,12 +6,12 @@ var psec = 0;
 var sec = 0;
 
 
+
 // check the time every 50ms
 var myVar = setInterval(function() {
     whatisthetime();
+    changeFonts();
 }, 10);
-
-
 
 function whatisthetime() {
   d = new Date();
@@ -19,9 +19,6 @@ function whatisthetime() {
   if (sec != psec){
       psec = sec;
       update();
-  }
-  if (sec % 10 == 0) {
-    updateColor();
   }
 }
 
@@ -47,6 +44,13 @@ function changeFonts() {
   document.getElementById('hh').classList.add(hhclass);
   document.getElementById('mm').classList.add(mmclass);
   document.getElementById('ss').classList.add(ssclass);
+
+  document.getElementById('hh').style.color = randomColor({luminosity:'light'});
+  document.getElementById('mm').style.color = randomColor({luminosity:'light'});
+  document.getElementById('ss').style.color = randomColor({luminosity:'light'});
+  document.getElementById('divider1').style.color = randomColor({luminosity:'light'});
+  document.getElementById('divider2').style.color = randomColor({luminosity:'light'});
+
 }
 
 function update() {
@@ -54,9 +58,6 @@ function update() {
   document.getElementById('mm').innerHTML = (d.getMinutes() < 10? '0' : '') + d.getMinutes();
   document.getElementById('ss').innerHTML = (d.getSeconds() < 10? '0' : '') + d.getSeconds();
   /* colour changing */
-}
-
-function updateColor() {
   document.getElementById('bgd').style.background = randomColor({luminosity:'dark'});
 }
 
