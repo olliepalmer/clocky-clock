@@ -43,10 +43,10 @@ body {
 
 .f0 {font-family: 'Cousine', monospace;}
 .f1 {font-family: 'B612 Mono', monospace; font-size: 195px;}
-/* .f2 {font-family: 'Major Mono Display', monospace; font-size:180px;baseline-shift: 100px; letter-spacing: 10px;} /* this one is off */ */
+.f2 {font-family: 'Libre Baskerville', serif; font-size:180px;baseline-shift: 100px; letter-spacing: 10px;}
 .f3 {font-family: 'Fira Code', monospace;}
 .f4 {font-family: 'Cutive Mono', monospace;}
-/* .f5 {font-family: 'Nova Mono', monospace; } */
+.f5 {font-family: 'Birthstone', monospace; }
 .f6 {font-family: 'Oxygen Mono', monospace;}
 .f7 {font-family: 'Overpass Mono', monospace;font-size: 1em;}
 .f8 {font-family: 'VT323', monospace;font-size: 1em;}
