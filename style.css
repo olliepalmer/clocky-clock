@@ -3,53 +3,15 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: black;
-  color: white;
-  font-family: 'Cousine', monospace;
-  font-variant-numeric: lining-nums;
 }
 
-.outer {
+/* the whole clock is drawn on this canvas (see script.js) */
+#stage {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 1000ms;
-  will-change: background;
-}
-
-/* Every number lives in a fixed-size slot and is centred in it, so the
-   layout never moves when the font changes. script.js sets the slot sizes
-   and each number's font-size (shrinking it if it won't fit its slot). */
-#clock {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.group {
-  display: flex;
-}
-
-.slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-
-.slot span {
+  width: 100%;
+  height: 100%;
   display: block;
-  white-space: nowrap;
-  text-align: center;
-}
-
-/* portrait: stack hours / minutes / seconds, drop the colons */
-@media (orientation: portrait) {
-  #clock { flex-direction: column; }
-  .slot.sep { display: none; }
 }
 
 /* ---------- controls ---------- */
@@ -68,6 +30,7 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 300ms;
+  z-index: 1;
 }
 
 #controls.visible,

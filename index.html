@@ -4,22 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>jittery clock</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
-<div class="outer" id="bgd">
-  <div id="clock">
-    <!-- every character is its own span in its own slot (script.js fills in the text) -->
-    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
-    <div class="slot sep"><span>:</span></div>
-    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
-    <div class="slot sep"><span>:</span></div>
-    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
-  </div>
-</div>
+<canvas id="stage" aria-label="Clock"></canvas>
 
 <div id="controls" aria-label="Clock settings">
   <div class="group" id="style-group" role="group" aria-label="Typeface style"></div>
@@ -27,6 +16,7 @@
 </div>
 
 <script src="./randomcolor.js"></script>
+<script src="./glyphs.js"></script>
 <script src="./script.js"></script>
 
 </body>
