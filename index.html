@@ -1,27 +1,33 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>jittery clock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="./style.css">
-
 </head>
 <body>
-<!-- partial:index.partial.html -->
-<link href="https://fonts.googleapis.com/css?family=Anonymous+Pro|B612+Mono|Cousine|Cutive+Mono|Fira+Code|Fira+Mono|IBM+Plex+Mono|Inconsolata|Major+Mono+Display|Nanum+Gothic+Coding|Nova+Mono|Overpass+Mono|Oxygen+Mono|PT+Mono|Roboto+Mono|Share+Tech+Mono|Source+Code+Pro|Space+Mono|Ubuntu+Mono|VT323|Ephesis|Birthstone|Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
 
-<div class="outer" id='bgd'>
-  <div class="middle">
-    <div class="inner">
-
-      <p id="clock"><span id="hh">&nbsp;&nbsp;</span><span id='divider1'>:</span><span id="mm">&nbsp;&nbsp;</span><span id='divider2'>:</span><span id="ss" style="xdisplay:none">&nbsp;&nbsp;</span></p>
-    </div>
+<div class="outer" id="bgd">
+  <div id="clock">
+    <!-- every character is its own span in its own slot (script.js fills in the text) -->
+    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
+    <div class="slot sep"><span>:</span></div>
+    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
+    <div class="slot sep"><span>:</span></div>
+    <div class="group"><div class="slot"><span></span></div><div class="slot"><span></span></div></div>
   </div>
 </div>
 
+<div id="controls" aria-label="Clock settings">
+  <div class="group" id="style-group" role="group" aria-label="Typeface style"></div>
+  <div class="group" id="colour-group" role="group" aria-label="Colour"></div>
+</div>
 
-
-<script  src="./script.js"></script>
+<script src="./randomcolor.js"></script>
+<script src="./script.js"></script>
 
 </body>
 </html>

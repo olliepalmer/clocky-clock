@@ -1,65 +1,411 @@
-var classes = ['f0','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12','f13','f14','f15','f16','f17','f18','f19']
-var elem = ['hh','mm','ss']
-var j = 0;
-var d;
-var psec = 0;
-var sec = 0;
+/* ---------- typefaces, grouped by style ---------- */
+// 'Name' or 'Name|weight'. Every name here is a Google Font.
+var STYLES = {
+  mono: { label: 'Mono', generic: 'monospace', fonts: [
+    'Cousine', 'B612 Mono', 'Fira Code', 'Cutive Mono', 'Oxygen Mono', 'Overpass Mono',
+    'VT323', 'Space Mono', 'Fira Mono', 'Anonymous Pro', 'IBM Plex Mono', 'Share Tech Mono',
+    'PT Mono', 'Nanum Gothic Coding', 'Roboto Mono', 'Inconsolata', 'Source Code Pro', 'Ubuntu Mono'
+  ]},
+  serif: { label: 'Serif', generic: 'serif', fonts: [
+    'Libre Baskerville|700', 'Playfair Display', 'Cormorant Garamond', 'Lora', 'DM Serif Display',
+    'Abril Fatface', 'Bodoni Moda', 'Cinzel', 'Old Standard TT', 'Prata'
+  ]},
+  sans: { label: 'Sans', generic: 'sans-serif', fonts: [
+    'Montserrat', 'Oswald', 'Poppins', 'Raleway', 'Bebas Neue',
+    'Josefin Sans', 'Quicksand', 'Work Sans', 'Barlow Condensed'
+  ]},
+  chunky: { label: 'Chunky', generic: 'sans-serif', fonts: [
+    'Alfa Slab One', 'Bevan', 'Chango', 'Titan One', 'Bungee', 'Rubik Mono One',
+    'Black Ops One', 'Anton', 'Archivo Black', 'Bowlby One', 'Luckiest Guy', 'Paytone One'
+  ]},
+  script: { label: 'Script', generic: 'cursive', fonts: [
+    'Birthstone', 'Ephesis', 'Pacifico', 'Lobster', 'Dancing Script',
+    'Great Vibes', 'Sacramento', 'Satisfy', 'Caveat'
+  ]},
+  weird: { label: 'Weird', generic: 'fantasy', fonts: [
+    'Monoton', 'Major Mono Display', 'Orbitron', 'Press Start 2P', 'Special Elite', 'Righteous', 'Unica One'
+  ]}
+};
 
+// colour choices: hue passed to randomColor (undefined = anything)
+var COLOURS = [
+  { id: 'rainbow', label: 'Rainbow', hue: undefined, swatch: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' },
+  { id: 'red',     label: 'Red',     hue: 'red',     swatch: '#ff4d4d' },
+  { id: 'orange',  label: 'Orange',  hue: 'orange',  swatch: '#ff9f40' },
+  { id: 'yellow',  label: 'Yellow',  hue: 'yellow',  swatch: '#ffe14d' },
+  { id: 'green',   label: 'Green',   hue: 'green',   swatch: '#4dff88' },
+  { id: 'blue',    label: 'Blue',    hue: 'blue',    swatch: '#4da6ff' },
+  { id: 'purple',  label: 'Purple',  hue: 'purple',  swatch: '#b54dff' },
+  { id: 'pink',    label: 'Pink',    hue: 'pink',    swatch: '#ff4dc4' },
+  { id: 'mono',    label: 'Mono',    hue: 'monochrome', swatch: 'linear-gradient(135deg, #fff 50%, #333 50%)' }
+];
 
+/* ---------- state ---------- */
+// blend modes for where characters overlap
+var BLENDS = [
+  { id: 'normal',      label: 'Solid' },
+  { id: 'screen',      label: 'Screen' },
+  { id: 'plus-lighter', label: 'Add' },
+  { id: 'difference',  label: 'Difference' },
+  { id: 'exclusion',   label: 'Exclusion' },
+  { id: 'overlay',     label: 'Overlay' }
+];
+// sliders: size is a multiplier on the fit-to-screen size, spacing a multiplier on the gap between characters
+var SLIDERS = {
+  size:    { min: 0.2, max: 1.6, step: 0.01 },
+  spacing: { min: 0.1, max: 1.6, step: 0.01 },
+  // speeds are slider positions 0..1 on a log scale (see jitterInterval / bgPeriod)
+  jitter:  { min: 0, max: 1, step: 0.005 },
+  bg:      { min: 0, max: 1, step: 0.005 }
+};
 
-// check the time every 50ms
-var myVar = setInterval(function() {
-    whatisthetime();
-    changeFonts();
-}, 10);
+var settings = { style: 'all', colour: 'rainbow', size: 1, spacing: 1, blend: 'normal', jitter: 1, bg: 1 };
+try {
+  var saved = JSON.parse(localStorage.getItem('clocky-clock') || '{}');
+  if (saved.style === 'all' || STYLES[saved.style]) settings.style = saved.style;
+  if (COLOURS.some(function (c) { return c.id === saved.colour; })) settings.colour = saved.colour;
+  if (BLENDS.some(function (b) { return b.id === saved.blend; })) settings.blend = saved.blend;
+  ['size', 'spacing', 'jitter', 'bg'].forEach(function (k) {
+    var v = Number(saved[k]);
+    if (isFinite(v) && v >= SLIDERS[k].min && v <= SLIDERS[k].max) settings[k] = v;
+  });
+} catch (e) {}
+
+function save() {
+  try { localStorage.setItem('clocky-clock', JSON.stringify(settings)); } catch (e) {}
+}
+
+// the 8 characters of "hh:mm:ss", each in its own span
+var parts = Array.prototype.slice.call(document.querySelectorAll('#clock .slot span'));
+var chars = ['', '', ':', '', '', ':', '', ''];
+function isSep(i) { return i === 2 || i === 5; }
+var bgdEl = document.getElementById('bgd');
+
+/* ---------- load the fonts ---------- */
+var loaded = {};   // font entry -> true once its digits are ready
+var widths = {};   // font entry -> { char: advance width in em } (so we never have to measure the page)
+var poolDirty = true;
+var CHARS = '0123456789:';
+
+function parseFont(entry) {
+  var bits = entry.split('|');
+  return { name: bits[0], weight: bits[1] || '400' };
+}
+
+var measureCtx = document.createElement('canvas').getContext('2d');
+
+function measureFont(entry) {
+  var f = parseFont(entry);
+  measureCtx.font = f.weight + ' 100px "' + f.name + '"';
+  var w = {};
+  for (var i = 0; i < CHARS.length; i++) w[CHARS[i]] = measureCtx.measureText(CHARS[i]).width / 100;
+  widths[entry] = w;
+}
+
+(function loadFonts() {
+  var families = [];
+  Object.keys(STYLES).forEach(function (key) {
+    STYLES[key].fonts.forEach(function (entry) {
+      var f = parseFont(entry);
+      families.push('family=' + f.name.replace(/ /g, '+') + (f.weight !== '400' ? ':wght@' + f.weight : ''));
+    });
+  });
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?' + families.join('&') + '&display=swap';
+  link.onload = function () {
+    // fetch just the glyphs we need, and only use a font once it's ready (no flashing fallbacks)
+    Object.keys(STYLES).forEach(function (key) {
+      STYLES[key].fonts.forEach(function (entry) {
+        var f = parseFont(entry);
+        document.fonts.load(f.weight + ' 40px "' + f.name + '"', CHARS).then(function () {
+          measureFont(entry);
+          loaded[entry] = true;
+          poolDirty = true;
+        }).catch(function () {});
+      });
+    });
+  };
+  document.head.appendChild(link);
+})();
+
+var pool = [];
+function rebuildPool() {
+  var keys = settings.style === 'all' ? Object.keys(STYLES) : [settings.style];
+  pool = [];
+  keys.forEach(function (key) {
+    STYLES[key].fonts.forEach(function (entry) {
+      if (loaded[entry]) pool.push({
+        family: '"' + parseFont(entry).name + '", ' + STYLES[key].generic,
+        weight: parseFont(entry).weight,
+        widths: widths[entry]
+      });
+    });
+  });
+  decks = [];     // start fresh shuffles
+  poolDirty = false;
+}
+
+// Random order without clumping: each character walks through a shuffled deck of
+// every font, then reshuffles, so all fonts get shown before any repeats.
+var decks = [];
+function nextFont(i) {
+  var deck = decks[i];
+  if (!deck || !deck.length) {
+    var last = deck && deck.last;
+    deck = [];
+    for (var k = 0; k < pool.length; k++) deck.push(pool[k]);
+    for (var a = deck.length - 1; a > 0; a--) {
+      var b = (Math.random() * (a + 1)) | 0, t = deck[a]; deck[a] = deck[b]; deck[b] = t;
+    }
+    // don't open the new deck with the font we just showed
+    if (last && deck.length > 1 && deck[deck.length - 1] === last) {
+      t = deck[0]; deck[0] = deck[deck.length - 1]; deck[deck.length - 1] = t;
+    }
+    decks[i] = deck;
+  }
+  var pick = deck.pop();
+  deck.last = pick;
+  return pick;
+}
+
+/* ---------- colours ---------- */
+function currentHue() {
+  return COLOURS.filter(function (c) { return c.id === settings.colour; })[0].hue;
+}
+
+function lightColour() { return randomColor({ luminosity: 'light', hue: currentHue() }); }
+function darkColour()  { return randomColor({ luminosity: 'dark',  hue: currentHue() }); }
+
+/* ---------- layout (only changes when the screen does) ---------- */
+var portraitQuery = window.matchMedia('(orientation: portrait)');
+var layout = { base: 100, digitW: 100, sepW: 50 };
+
+function updateLayout() {
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var size = settings.size, gap = settings.spacing;
+  var base, digitW, sepW, slotH;
+  if (portraitQuery.matches) {
+    base   = Math.min(vh * 0.27, vw * 0.58) * size;
+    digitW = base * 0.8;
+    sepW   = 0;
+    slotH  = vh * 0.3 * size * gap;
+  } else {
+    base   = Math.min(vw * 0.177, vh * 0.6) * size;
+    digitW = base * 0.75;
+    sepW   = base * 0.4;
+    slotH  = base * 1.2;
+  }
+  // glyphs are sized to the normal slot, then the slots are squeezed/stretched by the
+  // spacing slider, so characters can overlap when spacing is low
+  layout = { base: base, digitW: digitW, sepW: sepW };
+  parts.forEach(function (el, i) {
+    var slot = el.parentNode;
+    slot.style.width  = (isSep(i) ? sepW : digitW) * gap + 'px';
+    slot.style.height = slotH + 'px';
+    el.style.mixBlendMode = settings.blend;
+  });
+}
+
+window.addEventListener('resize', updateLayout);
+
+/* ---------- the jitter: every character gets its own font and colour, every frame ---------- */
+function jitter() {
+  if (poolDirty) rebuildPool();
+  var base = layout.base;
+  for (var i = 0; i < parts.length; i++) {
+    var el = parts[i], st = el.style;
+    if (pool.length) {
+      var pick = nextFont(i);
+      st.fontFamily = pick.family;
+      st.fontWeight = pick.weight;
+      // shrink (never grow) so this glyph fits its slot; widths come from a table, not from layout
+      var room = (isSep(i) ? layout.sepW : layout.digitW) * 0.96;
+      var w = pick.widths[chars[i]] || 0.6;
+      st.fontSize = Math.min(base, room / w) + 'px';
+    } else {
+      st.fontSize = base + 'px';
+    }
+    st.color = lightColour();
+  }
+}
+
+/* ---------- time ---------- */
+var psec = -1;
+
+function pad(n) { return (n < 10 ? '0' : '') + n; }
 
 function whatisthetime() {
-  d = new Date();
-  sec = d.getSeconds();
-  if (sec != psec){
-      psec = sec;
-      update();
+  var d = new Date();
+  var sec = d.getSeconds();
+  if (sec !== psec) {
+    psec = sec;
+    var s = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(sec);
+    for (var i = 0; i < parts.length; i++) {
+      chars[i] = s[i];
+      parts[i].textContent = s[i];
+    }
+    return true;
   }
+  return false;
 }
 
-function changeFonts() {
-  for (i = 0; i < classes.length; i++){
-    document.getElementById('hh').classList.remove(classes[i]);
-    document.getElementById('mm').classList.remove(classes[i]);
-    document.getElementById('ss').classList.remove(classes[i]);
-    document.getElementById('divider1').classList.remove(classes[i]);
-    document.getElementById('divider2').classList.remove(classes[i]);
+/* ---------- speeds ---------- */
+// Clock jitter: from 1 change per second up to one per screen refresh (slider far right = "max").
+function jitterRate(v) { return Math.pow(120, v); }                 // 1 .. 120 per second
+function jitterInterval(v) { return v >= 0.995 ? 0 : 1000 / jitterRate(v); }   // ms; 0 = every frame
+// Background: from one change a minute up to one a second.
+function bgPeriod(v) { return Math.pow(60, 1 - v); }                // seconds, 60 .. 1
+
+function fmtJitter(v) {
+  if (v >= 0.995) return 'max';
+  var r = jitterRate(v);
+  return (r < 10 ? r.toFixed(1) : Math.round(r)) + '/s';
+}
+function fmtBg(v) {
+  var p = bgPeriod(v);
+  if (p < 1.05) return '1/s';
+  if (p > 58) return '1/min';
+  return 'every ' + (p < 10 ? p.toFixed(1) : Math.round(p)) + 's';
+}
+
+var lastJitter = -Infinity, lastBg = -Infinity;
+
+// one pass per screen refresh; the sliders decide whether this pass actually changes anything
+function frame(now) {
+  var timeChanged = whatisthetime();
+  if (timeChanged || now - lastJitter >= jitterInterval(settings.jitter) - 2) {
+    lastJitter = now;
+    jitter();
   }
+  var period = bgPeriod(settings.bg) * 1000;
+  if (now - lastBg >= period - 2) {
+    lastBg = now;
+    // fade over the whole gap when it's slow, but never longer than 5s
+    bgdEl.style.transitionDuration = Math.min(period, 5000) + 'ms';
+    bgdEl.style.background = darkColour();
+  }
+  requestAnimationFrame(frame);
+}
+updateLayout();
+requestAnimationFrame(frame);
 
-  // cycle through fonts
-  // j += 1;
-  // if (j >= classes.length) j = 0;
-  // document.getElementById('hh').classList.add(classes[j]);
-  // document.getElementById('identifier').innerHTML = classes[j];
+/* ---------- controls ---------- */
+var controls = document.getElementById('controls');
+var styleGroup = document.getElementById('style-group');
+var colourGroup = document.getElementById('colour-group');
 
-  // random classes
-  var hhclass = classes[Math.floor(Math.random() * classes.length)];
-  var mmclass = classes[Math.floor(Math.random() * classes.length)];
-  var ssclass = classes[Math.floor(Math.random() * classes.length)];
-  document.getElementById('hh').classList.add(hhclass);
-  document.getElementById('mm').classList.add(mmclass);
-  document.getElementById('ss').classList.add(ssclass);
-
-  document.getElementById('hh').style.color = randomColor({luminosity:'light'});
-  document.getElementById('mm').style.color = randomColor({luminosity:'light'});
-  document.getElementById('ss').style.color = randomColor({luminosity:'light'});
-  document.getElementById('divider1').style.color = randomColor({luminosity:'light'});
-  document.getElementById('divider2').style.color = randomColor({luminosity:'light'});
-
+function makeButton(parent, label, onClick, cls) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  if (cls) b.className = cls;
+  if (label) b.textContent = label;
+  b.addEventListener('click', onClick);
+  parent.appendChild(b);
+  return b;
 }
 
-function update() {
-  document.getElementById('hh').innerHTML = (d.getHours()   < 10? '0' : '') + d.getHours();
-  document.getElementById('mm').innerHTML = (d.getMinutes() < 10? '0' : '') + d.getMinutes();
-  document.getElementById('ss').innerHTML = (d.getSeconds() < 10? '0' : '') + d.getSeconds();
-  /* colour changing */
-  document.getElementById('bgd').style.background = randomColor({luminosity:'dark'});
-}
+var styleButtons = {};
+[['all', 'All']].concat(Object.keys(STYLES).map(function (k) { return [k, STYLES[k].label]; }))
+  .forEach(function (pair) {
+    styleButtons[pair[0]] = makeButton(styleGroup, pair[1], function () {
+      settings.style = pair[0];
+      poolDirty = true;
+      save();
+      refreshControls();
+    });
+  });
 
-// colour fun!
-!function(r,e){if("object"==typeof exports){var n=e();"object"==typeof module&&module&&module.exports&&(exports=module.exports=n),exports.randomColor=n}else"function"==typeof define&&define.amd?define([],e):r.randomColor=e()}(this,function(){function r(r){var e=o(r.hue),n=i(e);return n<0&&(n=360+n),n}function e(r,e){if("monochrome"===e.hue)return 0;if("random"===e.luminosity)return i([0,100]);var n=u(r),t=n[0],a=n[1];switch(e.luminosity){case"bright":t=55;break;case"dark":t=a-10;break;case"light":a=55}return i([t,a])}function n(r,e,n){var t=a(r,e),o=100;switch(n.luminosity){case"dark":o=t+20;break;case"light":t=(o+t)/2;break;case"random":t=0,o=100}return i([t,o])}function t(r,e){switch(e.format){case"hsvArray":return r;case"hslArray":return d(r);case"hsl":var n=d(r);return"hsl("+n[0]+", "+n[1]+"%, "+n[2]+"%)";case"hsla":var t=d(r),a=e.alpha||Math.random();return"hsla("+t[0]+", "+t[1]+"%, "+t[2]+"%, "+a+")";case"rgbArray":return f(r);case"rgb":return"rgb("+f(r).join(", ")+")";case"rgba":var o=f(r),a=e.alpha||Math.random();return"rgba("+o.join(", ")+", "+a+")";default:return c(r)}}function a(r,e){for(var n=s(r).lowerBounds,t=0;t<n.length-1;t++){var a=n[t][0],o=n[t][1],u=n[t+1][0],i=n[t+1][1];if(e>=a&&e<=u){var c=(i-o)/(u-a);return c*e+(o-c*a)}}return 0}function o(r){if("number"==typeof parseInt(r)){var e=parseInt(r);if(e<360&&e>0)return[e,e]}if("string"==typeof r)if(m[r]){var n=m[r];if(n.hueRange)return n.hueRange}else if(r.match(/^#?([0-9A-F]{3}|[0-9A-F]{6})$/i)){const t=h(r)[0];return[t,t]}return[0,360]}function u(r){return s(r).saturationRange}function s(r){r>=334&&r<=360&&(r-=360);for(var e in m){var n=m[e];if(n.hueRange&&r>=n.hueRange[0]&&r<=n.hueRange[1])return m[e]}return"Color not found"}function i(r){if(null===v)return Math.floor(r[0]+Math.random()*(r[1]+1-r[0]));var e=r[1]||1,n=r[0]||0;v=(9301*v+49297)%233280;var t=v/233280;return Math.floor(n+t*(e-n))}function c(r){function e(r){var e=r.toString(16);return 1==e.length?"0"+e:e}var n=f(r);return"#"+e(n[0])+e(n[1])+e(n[2])}function l(r,e,n){var t=n[0][0],a=n[n.length-1][0],o=n[n.length-1][1],u=n[0][1];m[r]={hueRange:e,lowerBounds:n,saturationRange:[t,a],brightnessRange:[o,u]}}function f(r){var e=r[0];0===e&&(e=1),360===e&&(e=359),e/=360;var n=r[1]/100,t=r[2]/100,a=Math.floor(6*e),o=6*e-a,u=t*(1-n),s=t*(1-o*n),i=t*(1-(1-o)*n),c=256,l=256,f=256;switch(a){case 0:c=t,l=i,f=u;break;case 1:c=s,l=t,f=u;break;case 2:c=u,l=t,f=i;break;case 3:c=u,l=s,f=t;break;case 4:c=i,l=u,f=t;break;case 5:c=t,l=u,f=s}return[Math.floor(255*c),Math.floor(255*l),Math.floor(255*f)]}function h(r){r=r.replace(/^#/,""),r=3===r.length?r.replace(/(.)/g,"$1$1"):r;const e=parseInt(r.substr(0,2),16)/255,n=parseInt(r.substr(2,2),16)/255,t=parseInt(r.substr(4,2),16)/255,a=Math.max(e,n,t),o=a-Math.min(e,n,t),u=a?o/a:0;switch(a){case e:return[(n-t)/o%6*60||0,u,a];case n:return[60*((t-e)/o+2)||0,u,a];case t:return[60*((e-n)/o+4)||0,u,a]}}function d(r){var e=r[0],n=r[1]/100,t=r[2]/100,a=(2-n)*t;return[e,Math.round(n*t/(a<1?a:2-a)*1e4)/100,a/2*100]}function g(r){for(var e=0,n=0;n!==r.length&&!(e>=Number.MAX_SAFE_INTEGER);n++)e+=r.charCodeAt(n);return e}var v=null,m={};!function(){l("monochrome",null,[[0,0],[100,0]]),l("red",[-26,18],[[20,100],[30,92],[40,89],[50,85],[60,78],[70,70],[80,60],[90,55],[100,50]]),l("orange",[19,46],[[20,100],[30,93],[40,88],[50,86],[60,85],[70,70],[100,70]]),l("yellow",[47,62],[[25,100],[40,94],[50,89],[60,86],[70,84],[80,82],[90,80],[100,75]]),l("green",[63,178],[[30,100],[40,90],[50,85],[60,81],[70,74],[80,64],[90,50],[100,40]]),l("blue",[179,257],[[20,100],[30,86],[40,80],[50,74],[60,60],[70,52],[80,44],[90,39],[100,35]]),l("purple",[258,282],[[20,100],[30,87],[40,79],[50,70],[60,65],[70,59],[80,52],[90,45],[100,42]]),l("pink",[283,334],[[20,100],[30,90],[40,86],[60,84],[80,80],[90,75],[100,73]])}();var p=function(a){if(a=a||{},void 0!==a.seed&&null!==a.seed&&a.seed===parseInt(a.seed,10))v=a.seed;else if("string"==typeof a.seed)v=g(a.seed);else{if(void 0!==a.seed&&null!==a.seed)throw new TypeError("The seed value must be an integer or string");v=null}var o,u,s;if(null!==a.count&&void 0!==a.count){var i=a.count,c=[];for(a.count=null;i>c.length;)v&&a.seed&&(a.seed+=1),c.push(p(a));return a.count=i,c}return o=r(a),u=e(o,a),s=n(o,u,a),t([o,u,s],a)};return p});
+var colourButtons = {};
+COLOURS.forEach(function (c) {
+  var b = makeButton(colourGroup, '', function () {
+    settings.colour = c.id;
+    lastBg = -Infinity;   // repaint the background straight away
+    save();
+    refreshControls();
+  }, 'swatch');
+  b.style.background = c.swatch;
+  b.title = c.label;
+  b.setAttribute('aria-label', c.label + ' colour');
+  colourButtons[c.id] = b;
+});
+
+// sliders (size / spacing) and the overlap blend mode
+var tuneGroup = document.createElement('div');
+tuneGroup.className = 'group tune';
+tuneGroup.setAttribute('role', 'group');
+tuneGroup.setAttribute('aria-label', 'Size, spacing and overlap');
+controls.appendChild(tuneGroup);
+
+function makeSlider(key, label, format) {
+  var wrap = document.createElement('label');
+  wrap.className = 'slider';
+  var text = document.createElement('span');
+  text.textContent = label;
+  var readout = document.createElement('output');
+  readout.className = 'readout';
+  var input = document.createElement('input');
+  input.type = 'range';
+  input.min = SLIDERS[key].min;
+  input.max = SLIDERS[key].max;
+  input.step = SLIDERS[key].step;
+  input.value = settings[key];
+  input.addEventListener('input', function () {
+    settings[key] = Number(input.value);
+    if (format) readout.textContent = format(settings[key]);
+    updateLayout();
+    save();
+  });
+  if (format) readout.textContent = format(settings[key]);
+  wrap.appendChild(text);
+  wrap.appendChild(input);
+  if (format) wrap.appendChild(readout);
+  tuneGroup.appendChild(wrap);
+}
+makeSlider('size', 'Size');
+makeSlider('spacing', 'Spacing');
+makeSlider('jitter', 'Jitter speed', fmtJitter);
+makeSlider('bg', 'Background speed', fmtBg);
+
+var blendWrap = document.createElement('label');
+blendWrap.className = 'slider';
+var blendText = document.createElement('span');
+blendText.textContent = 'Overlap';
+var blendSelect = document.createElement('select');
+BLENDS.forEach(function (b) {
+  var o = document.createElement('option');
+  o.value = b.id;
+  o.textContent = b.label;
+  blendSelect.appendChild(o);
+});
+blendSelect.value = settings.blend;
+blendSelect.addEventListener('change', function () {
+  settings.blend = blendSelect.value;
+  updateLayout();
+  save();
+});
+blendWrap.appendChild(blendText);
+blendWrap.appendChild(blendSelect);
+tuneGroup.appendChild(blendWrap);
+
+function refreshControls() {
+  Object.keys(styleButtons).forEach(function (k) {
+    styleButtons[k].setAttribute('aria-pressed', String(k === settings.style));
+  });
+  Object.keys(colourButtons).forEach(function (k) {
+    colourButtons[k].setAttribute('aria-pressed', String(k === settings.colour));
+  });
+}
+refreshControls();
+
+// controls fade away when idle; any movement/touch/key brings them back
+var hideTimer;
+function showControls() {
+  controls.classList.add('visible');
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(function () { controls.classList.remove('visible'); }, 3500);
+}
+['pointermove', 'pointerdown', 'keydown'].forEach(function (ev) {
+  window.addEventListener(ev, showControls, { passive: true });
+});
+showControls();

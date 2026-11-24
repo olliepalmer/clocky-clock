@@ -1,63 +1,152 @@
-body {
-  font-size:200px;
-  /*   background:black; */
-  text-align: center;
-  line-height: 1;
-  color:white;
-  background:black;
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: black;
+  color: white;
   font-family: 'Cousine', monospace;
+  font-variant-numeric: lining-nums;
 }
 
 .outer {
-	display: table;
-	position: absolute;
-	top: 0;
-	left: 0;
-	height: 100%;
-	width: 100%;
-  transition:all 1000ms;
-  will-change:background;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 1000ms;
+  will-change: background;
 }
 
-.middle {
-	display: table-cell;
-	vertical-align: middle;
-	/*background: black;*/
+/* Every number lives in a fixed-size slot and is centred in it, so the
+   layout never moves when the font changes. script.js sets the slot sizes
+   and each number's font-size (shrinking it if it won't fit its slot). */
+#clock {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
-.inner {
-	margin-left: auto;
-	margin-right: auto;
-	width: 100%;
-	text-align: center;
+.group {
+  display: flex;
 }
 
-#hh, #mm, #ss {
-  /* background: red; */
-  width: 100px;
-  height: 50px;
-  /* display:table; */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.slot span {
+  display: block;
+  white-space: nowrap;
   text-align: center;
 }
 
+/* portrait: stack hours / minutes / seconds, drop the colons */
+@media (orientation: portrait) {
+  #clock { flex-direction: column; }
+  .slot.sep { display: none; }
+}
 
-.f0 {font-family: 'Cousine', monospace;}
-.f1 {font-family: 'B612 Mono', monospace; font-size: 195px;}
-.f2 {font-family: 'Libre Baskerville', serif; font-size:180px;baseline-shift: 100px; letter-spacing: 10px;}
-.f3 {font-family: 'Fira Code', monospace;}
-.f4 {font-family: 'Cutive Mono', monospace;}
-.f5 {font-family: 'Birthstone', monospace; }
-.f6 {font-family: 'Oxygen Mono', monospace;}
-.f7 {font-family: 'Overpass Mono', monospace;font-size: 1em;}
-.f8 {font-family: 'VT323', monospace;font-size: 1em;}
-.f9 {font-family: 'Space Mono', monospace;font-size: 0.9em;}
-.f10 {font-family: 'Fira Mono', monospace;}
-.f11 {font-family: 'Anonymous Pro', monospace;font-size: 1.1em;}
-.f12 {font-family: 'IBM Plex Mono', monospace;}
-.f13 {font-family: 'Share Tech Mono', monospace;}
-.f14 {font-family: 'PT Mono', monospace;}
-.f15 {font-family: 'Nanum Gothic Coding', monospace;}
-.f16 {font-family: 'Roboto Mono', monospace;}
-.f17 {font-family: 'Inconsolata', monospace; font-size:1.1em}
-.f18 {font-family: 'Source Code Pro', monospace;}
-.f19 {font-family: 'Ubuntu Mono', monospace;}
+/* ---------- controls ---------- */
+
+#controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  font: 600 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms;
+}
+
+#controls.visible,
+#controls:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#controls .group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+#controls button {
+  font: inherit;
+  color: #fff;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+#controls button:hover { background: rgba(255, 255, 255, 0.15); }
+#controls button[aria-pressed="true"] { background: #fff; color: #000; }
+#controls button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* sliders + overlap select */
+#controls .tune {
+  gap: 6px 16px;
+  padding: 6px 16px;
+  align-items: center;
+}
+
+#controls .slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+#controls .slider input[type="range"] {
+  width: 110px;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+#controls .slider .readout {
+  min-width: 4.5em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+#controls .slider select {
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+#controls .slider select option { color: #000; }
+
+/* colour swatches */
+#controls button.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+#controls button.swatch[aria-pressed="true"] {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff;
+}
