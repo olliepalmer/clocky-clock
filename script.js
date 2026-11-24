@@ -61,7 +61,16 @@ var SLIDERS = {
   morph:   { min: 0, max: 1, step: 0.01 }
 };
 
-var settings = { style: 'all', colour: 'rainbow', size: 1, spacing: 1, blend: 'normal', jitter: 0.3, bg: 1, morph: 0.9 };
+// ready-made looks (jitter / bg are slider positions: jitter 0 = 1/s, 0.481 = 10/s; bg 0 = 1/min, 1 = 1/s)
+var PRESETS = [
+  { id: 'blue-steel',  label: 'Blue Steel',    settings: { style: 'chunky', colour: 'blue',   size: 1.5,  spacing: 0.6,  jitter: 0,     morph: 0.46, bg: 0,     blend: 'overlay' } },
+  { id: 'green',       label: 'Smell of Green', settings: { style: 'all',    colour: 'green',  size: 1,    spacing: 0.84, jitter: 0,     morph: 1,    bg: 0.831, blend: 'overlay' } },
+  { id: 'orange',      label: 'Orange Flame',  settings: { style: 'chunky', colour: 'orange', size: 0.87, spacing: 0.75, jitter: 0.481, morph: 0,    bg: 1,     blend: 'difference' } },
+  { id: 'yellow',      label: 'Animated Yellow', settings: { style: 'all',  colour: 'yellow', size: 1.1,  spacing: 0.8,  jitter: 0.35,  morph: 1,    bg: 0.9,   blend: 'exclusion' } }
+];
+
+var settings = {};
+Object.keys(PRESETS[0].settings).forEach(function (k) { settings[k] = PRESETS[0].settings[k]; });   // first visit: Blue Steel
 try {
   var saved = JSON.parse(localStorage.getItem('clocky-clock-morph') || '{}');
   if (saved.style === 'all' || STYLES[saved.style]) settings.style = saved.style;
@@ -675,6 +684,7 @@ tuneGroup.setAttribute('role', 'group');
 tuneGroup.setAttribute('aria-label', 'Size, spacing, speed, morph and overlap');
 controls.appendChild(tuneGroup);
 
+var sliderEls = {};
 function makeSlider(key, label, format) {
   var wrap = document.createElement('label');
   wrap.className = 'slider';
@@ -693,12 +703,14 @@ function makeSlider(key, label, format) {
     if (format) readout.textContent = format(settings[key]);
     updateLayout();
     save();
+    refreshControls();
   });
   if (format) readout.textContent = format(settings[key]);
   wrap.appendChild(text);
   wrap.appendChild(input);
   if (format) wrap.appendChild(readout);
   tuneGroup.appendChild(wrap);
+  sliderEls[key] = { input: input, readout: readout, format: format };
 }
 makeSlider('size', 'Size');
 makeSlider('spacing', 'Spacing');
@@ -721,12 +733,49 @@ blendSelect.value = settings.blend;
 blendSelect.addEventListener('change', function () {
   settings.blend = blendSelect.value;
   save();
+  refreshControls();
 });
 blendWrap.appendChild(blendText);
 blendWrap.appendChild(blendSelect);
 tuneGroup.appendChild(blendWrap);
 
+// presets: one click sets everything
+var presetGroup = document.createElement('div');
+presetGroup.className = 'group presets';
+presetGroup.setAttribute('role', 'group');
+presetGroup.setAttribute('aria-label', 'Presets');
+controls.insertBefore(presetGroup, controls.firstChild);
+
+function applyPreset(preset) {
+  Object.keys(preset.settings).forEach(function (k) { settings[k] = preset.settings[k]; });
+  poolDirty = true;
+  lastBg = -Infinity;
+  Object.keys(sliderEls).forEach(function (k) {
+    var el = sliderEls[k];
+    el.input.value = settings[k];
+    if (el.format) el.readout.textContent = el.format(settings[k]);
+  });
+  blendSelect.value = settings.blend;
+  updateLayout();
+  save();
+  refreshControls();
+}
+
+function presetActive(preset) {
+  return Object.keys(preset.settings).every(function (k) {
+    var a = preset.settings[k], b = settings[k];
+    return typeof a === 'number' ? Math.abs(a - b) < 0.006 : a === b;
+  });
+}
+
+var presetButtons = PRESETS.map(function (preset) {
+  return makeButton(presetGroup, preset.label, function () { applyPreset(preset); });
+});
+
 function refreshControls() {
+  presetButtons.forEach(function (b, i) {
+    b.setAttribute('aria-pressed', String(presetActive(PRESETS[i])));
+  });
   Object.keys(styleButtons).forEach(function (k) {
     styleButtons[k].setAttribute('aria-pressed', String(k === settings.style));
   });
