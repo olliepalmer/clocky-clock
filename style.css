@@ -85,6 +85,15 @@ html, body {
   cursor: pointer;
 }
 
+#controls .slider.check { cursor: pointer; }
+#controls .slider input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
 #controls .slider .readout {
   min-width: 4.5em;
   font-variant-numeric: tabular-nums;

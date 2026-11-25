@@ -69,13 +69,14 @@ var PRESETS = [
   { id: 'yellow',      label: 'Animated Yellow', settings: { style: 'all',  colour: 'yellow', size: 1.1,  spacing: 0.8,  jitter: 0.35,  morph: 1,    bg: 0.9,   blend: 'exclusion' } }
 ];
 
-var settings = {};
+var settings = { vary: false };
 Object.keys(PRESETS[0].settings).forEach(function (k) { settings[k] = PRESETS[0].settings[k]; });   // first visit: Blue Steel
 try {
   var saved = JSON.parse(localStorage.getItem('clocky-clock-morph') || '{}');
   if (saved.style === 'all' || STYLES[saved.style]) settings.style = saved.style;
   if (COLOURS.some(function (c) { return c.id === saved.colour; })) settings.colour = saved.colour;
   if (BLENDS.some(function (b) { return b.id === saved.blend; })) settings.blend = saved.blend;
+  if (typeof saved.vary === 'boolean') settings.vary = saved.vary;
   ['size', 'spacing', 'jitter', 'bg', 'morph'].forEach(function (k) {
     var v = Number(saved[k]);
     if (saved[k] != null && isFinite(v) && v >= SLIDERS[k].min && v <= SLIDERS[k].max) settings[k] = v;
@@ -601,25 +602,42 @@ function fmtBg(v) {
 function fmtMorph(v) { return v <= 0.005 ? 'off' : Math.round(v * 100) + '%'; }
 
 /* ---------- main loop ---------- */
-var lastJitter = -Infinity, lastBg = -Infinity;
+var lastBg = -Infinity;
 
-// every character gets a new font, shape and colour, and starts morphing towards them
-function retargetAll(now) {
-  if (poolDirty) rebuildPool();
-  if (!pool.length) return;
-  var interval = jitterInterval(settings.jitter) || 1000 / 60;
-  var dur = settings.morph * interval;
-  for (var i = 0; i < NCELLS; i++) {
-    var glyph = getGlyph(nextFont(i), chars[i]);
-    if (glyph) startMorph(cells[i], glyph, lightColour(), now, dur);
-  }
+// "vary per letter": every character gets its own speed multiplier, re-rolled every few seconds
+var MIN_FACTOR = 0.4, MAX_FACTOR = 3;
+function rollFactor(cell, now) {
+  cell.factor = Math.exp(Math.log(MIN_FACTOR) + Math.random() * (Math.log(MAX_FACTOR) - Math.log(MIN_FACTOR)));
+  cell.rerollAt = now + 1500 + Math.random() * 4500;
+}
+cells.forEach(function (c) { c.factor = 1; c.rerollAt = 0; c.last = -Infinity; c.lastChar = ''; });
+
+// ms between changes for one character (never slower than once a second)
+function cellInterval(cell) {
+  var base = jitterInterval(settings.jitter) || 1000 / 60;
+  return settings.vary ? Math.min(1000, base / cell.factor) : base;
+}
+
+// give one character a new font, shape and colour, and start morphing towards them
+function retarget(i, now) {
+  var cell = cells[i];
+  cell.last = now;
+  cell.lastChar = chars[i];
+  var glyph = getGlyph(nextFont(i), chars[i]);
+  if (glyph) startMorph(cell, glyph, lightColour(), now, settings.morph * cellInterval(cell));
 }
 
 function frame(now) {
   var timeChanged = whatisthetime();
-  if (timeChanged || now - lastJitter >= jitterInterval(settings.jitter) - 2) {
-    lastJitter = now;
-    retargetAll(now);
+  if (poolDirty) rebuildPool();
+  if (pool.length) {
+    for (var i = 0; i < NCELLS; i++) {
+      var cell = cells[i];
+      if (settings.vary && now >= cell.rerollAt) rollFactor(cell, now);
+      // a new digit always retargets; otherwise each character runs on its own clock
+      var digitChanged = timeChanged && (!settings.vary || chars[i] !== cell.lastChar);
+      if (digitChanged || now - cell.last >= cellInterval(cell) - 2) retarget(i, now);
+    }
   }
   var period = bgPeriod(settings.bg) * 1000;
   if (now - lastBg >= period - 2) {
@@ -717,6 +735,22 @@ makeSlider('spacing', 'Spacing');
 makeSlider('jitter', 'Jitter speed', fmtJitter);
 makeSlider('morph', 'Morph', fmtMorph);
 makeSlider('bg', 'Background speed', fmtBg);
+
+var varyWrap = document.createElement('label');
+varyWrap.className = 'slider check';
+var varyBox = document.createElement('input');
+varyBox.type = 'checkbox';
+varyBox.checked = settings.vary;
+varyBox.addEventListener('change', function () {
+  settings.vary = varyBox.checked;
+  cells.forEach(function (c) { rollFactor(c, performance.now()); });
+  save();
+});
+var varyText = document.createElement('span');
+varyText.textContent = 'Vary speed per letter';
+varyWrap.appendChild(varyBox);
+varyWrap.appendChild(varyText);
+tuneGroup.appendChild(varyWrap);
 
 var blendWrap = document.createElement('label');
 blendWrap.className = 'slider';
