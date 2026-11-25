@@ -52,7 +52,8 @@ var BLENDS = [
 ];
 // size is a multiplier on the fit-to-screen size, spacing a multiplier on the gap between characters
 var SLIDERS = {
-  size:    { min: 0.2, max: 1.6, step: 0.01 },
+  // size max is worked out from the screen so that the biggest setting makes a digit 100vh tall (see updateLayout)
+  size:    { min: 0.2, max: 10, step: 0.01 },
   spacing: { min: 0.1, max: 1.6, step: 0.01 },
   // speeds are slider positions 0..1 on a log scale (see jitterInterval / bgPeriod)
   jitter:  { min: 0, max: 1, step: 0.005 },
@@ -486,7 +487,15 @@ function updateLayout() {
   var w = Math.round(vw * dpr), h = Math.round(vh * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
 
-  var size = settings.size, gap = settings.spacing, portrait = portraitQuery.matches;
+  var gap = settings.spacing, portrait = portraitQuery.matches;
+  // fit-to-screen size at Size = 1; the slider's top end is whatever makes a digit 100vh tall
+  var fit = portrait ? Math.min(vh * 0.27, vw * 0.58) : Math.min(vw * 0.177, vh * 0.6);
+  var maxSize = vh / (0.72 * fit);
+  if (typeof sliderEls !== 'undefined' && sliderEls.size) {
+    sliderEls.size.input.max = maxSize;
+    if (settings.size > maxSize) { settings.size = maxSize; sliderEls.size.input.value = maxSize; }
+  }
+  var size = settings.size;
   var base, digitW, sepW, rowH;
   if (portrait) {
     base   = Math.min(vh * 0.27, vw * 0.58) * size;
@@ -830,3 +839,5 @@ function showControls() {
   window.addEventListener(ev, showControls, { passive: true });
 });
 showControls();
+
+updateLayout();   // now that the sliders exist, set the Size slider's screen-dependent maximum
